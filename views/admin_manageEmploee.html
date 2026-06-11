@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>admin_manageEmploee</title>
+</head>
+<body>
+    <form action="/admin/addEmployee" method="POST">
+
+    <label>Họ tên:</label>
+    <input type="text" name="hoTen" required>
+
+    <br><br>
+
+    <label>Lương:</label>
+    <input type="number" name="luong" step="0.01">
+
+    <br><br>
+
+    <label>Chức vụ:</label>
+    <input type="text" name="chucVu">
+
+    <br><br>
+
+    <button type="submit">Thêm nhân viên</button>
+</form>
+    <button onclick = "getAllEmployees()">Xem tất cả nhân viên</button>
+
+    <div id="result"></div>
+
+<script>
+window.getAllEmployees = async function getAllEmployees() {
+    const res = await fetch('/admin/employees');
+    const data = await res.json();
+
+    console.log(data);
+
+    document.getElementById('result').innerHTML =
+        data.map(e =>
+             `<div>
+                ${e.hoTen} - ${e.luong} - ${e.chucVu}
+                <button onclick="deleteService(${e.id_kh})">Xoá</button>
+            </div>`
+        ).join('');
+}
+</script>
+
+</body>
+</html>

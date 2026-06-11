@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>admin_manageService</title>
+</head>
+<body>
+    <form action="/admin/addService" method="POST">
+
+    <label>Tên dịch vụ:</label>
+    <input type="text" name="ten" required>
+
+    <br><br>
+
+    <label>Giá:</label>
+    <input type="number" name="gia" step="0.01" min="0">
+
+    <br><br>
+
+    <button type="submit">Thêm dịch vụ</button>
+
+</form>
+<button onclick = "getAllService()">Xem tất cả dịch vụ</button>
+
+    <div id="result"></div>
+
+<script>
+window.getAllService = async function getAllService() {
+    const res = await fetch('/admin/service');
+    const data = await res.json();
+
+    console.log(data);
+
+    document.getElementById('result').innerHTML =
+        data.map(e =>
+             `<div>
+                ${e.ten} - ${e.gia}
+                <button onclick="deleteService(${e.ma_dv})">Xoá</button>
+            </div>`
+        ).join('');
+}
+window.deleteService = async function deleteService(id) {
+    await fetch(`/admin/deleteService/${id}`, {
+        method: 'POST'
+    });
+    getAllService();
+}
+</script>
+</body>
+</html>

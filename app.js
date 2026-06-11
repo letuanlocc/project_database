@@ -1,22 +1,31 @@
 const express = require('express');
 const dotenv = require('dotenv');
-const connectDatabase = require('./config/db');
-const productRoutes = require('./routes/productRoutes');
+const { connectDatabase } = require('./config/db');
+const adminRoutes = require('./routes/adminRoutes');
+const orderRoutes = require('./routes/orderRoutes');
+const path = require('path');
+
+dotenv.config();
+
 const startServer = async () => {
-    await connectDatabase();
+  await connectDatabase();
 
-    const app = express();
+  const app = express();
 
-    app.set('view',path.join(__dirname,'views'));
+  app.use(express.urlencoded({ extended: true }));
+  app.use(express.json());
 
-    app.use('/products', productRoutes);
+  app.use('/order', orderRoutes);
+  app.use('/admin', adminRoutes);
 
-    app.get('/', (req, res) => res.redirect('/products'));
-
-    const PORT = process.env.PORT || 3000;
-
-    app.listen(PORT, () =>
-    console.log('Server running at http://localhost:${PORT}')
-  );
+  app.use(express.static(path.join(__dirname, 'views')));
   
-}
+  app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'index.html'));
+  });
+
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => console.log(`Server running at http://localhost:${PORT}`));
+};
+
+startServer();

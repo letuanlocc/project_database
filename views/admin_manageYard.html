@@ -6,6 +6,89 @@
     <title>admin_manageYard</title>
 </head>
 <body>
+    <form id="yardForm">
+
+    <label>Tên sân:</label>
+    <input type="text" name="ten" required maxlength="100">
+
+    <br><br>
+
+    <select name="trangThai">
+    <option value="trong">Trống</option>
+    <option value="dang_su_dung">Đang sử dụng</option>
+    <option value="bao_tri">Bảo trì</option>
+    </select>
+
+    <br><br>
+
+    <label>Giá:</label>
+    <input type="number" name="gia" required min="0">
+
+    <br><br>
+
+    <button type="submit">Thêm sân</button>
+
+</form>
+<button onclick = "getAllYard()">Xem tất cả sân</button>
+
+    <div id="result"></div>
+
+<script>
+window.getAllYard = async function getAllYard() {
+    const res = await fetch('/admin/yard');
+    const data = await res.json();
+
+    console.log(data);
+
+    document.getElementById('result').innerHTML =
+        data.map(e =>
+             `<div>
+                ${e.ten} - ${e.trangThai} - ${e.gia} 
+                <button onclick="deleteYard(${e.ma_san})">Xoá</button>
+            </div>`
+        ).join('');
+}
+window.deleteYard = async function deleteYard(id) {
+    const res = await fetch(`/admin/deleteYard/${id}`, {
+        method: 'POST'
+    });
+    const data = await res.json();
     
+    if (!res.ok) {
+        alert('Lỗi: ' + (data.error || 'Không thể xoá sân'));
+        return;
+    }
+    
+    alert(data.message);
+    getAllYard();
+}
+
+document.getElementById('yardForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData);
+    
+    try {
+        const res = await fetch('/admin/addYard', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        const result = await res.json();
+        
+        if (!res.ok) {
+            alert('Lỗi: ' + (result.error || 'Không thể thêm sân'));
+            return;
+        }
+        
+        alert(result.message);
+        e.target.reset();
+        getAllYard();
+    } catch (error) {
+        alert('Lỗi: ' + error.message);
+    }
+});
+</script>
 </body>
 </html>

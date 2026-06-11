@@ -6,7 +6,7 @@
     <title>admin_manageEmploee</title>
 </head>
 <body>
-    <form action="/admin/addEmployee" method="POST">
+    <form id="employeeForm">
 
     <label>Họ tên:</label>
     <input type="text" name="hoTen" required>
@@ -40,10 +40,51 @@ window.getAllEmployees = async function getAllEmployees() {
         data.map(e =>
              `<div>
                 ${e.hoTen} - ${e.luong} - ${e.chucVu}
-                <button onclick="deleteService(${e.id_kh})">Xoá</button>
+                <button onclick="deleteEmployee(${e.ma_nv})">Xoá</button>
             </div>`
         ).join('');
 }
+window.deleteEmployee = async function deleteEmployee(id) {
+    const res = await fetch(`/admin/deleteEmployee/${id}`, {
+        method: 'POST'
+    });
+    const data = await res.json();
+    
+    if (!res.ok) {
+        alert('Lỗi: ' + (data.error || 'Không thể xoá nhân viên'));
+        return;
+    }
+    
+    alert(data.message);
+    getAllEmployees();
+}
+
+document.getElementById('employeeForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData);
+    
+    try {
+        const res = await fetch('/admin/addEmployee', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        const result = await res.json();
+        
+        if (!res.ok) {
+            alert('Lỗi: ' + (result.error || 'Không thể thêm nhân viên'));
+            return;
+        }
+        
+        alert(result.message);
+        e.target.reset();
+        getAllEmployees();
+    } catch (error) {
+        alert('Lỗi: ' + error.message);
+    }
+});
 </script>
 
 </body>

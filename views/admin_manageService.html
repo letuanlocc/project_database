@@ -6,7 +6,7 @@
     <title>admin_manageService</title>
 </head>
 <body>
-    <form action="/admin/addService" method="POST">
+    <form id="serviceForm">
 
     <label>Tên dịch vụ:</label>
     <input type="text" name="ten" required>
@@ -41,11 +41,46 @@ window.getAllService = async function getAllService() {
         ).join('');
 }
 window.deleteService = async function deleteService(id) {
-    await fetch(`/admin/deleteService/${id}`, {
+    const res = await fetch(`/admin/deleteService/${id}`, {
         method: 'POST'
     });
+    const data = await res.json();
+    
+    if (!res.ok) {
+        alert('Lỗi: ' + (data.error || 'Không thể xoá dịch vụ'));
+        return;
+    }
+    
+    alert(data.message);
     getAllService();
 }
+
+document.getElementById('serviceForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData);
+    
+    try {
+        const res = await fetch('/admin/addService', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        const result = await res.json();
+        
+        if (!res.ok) {
+            alert('Lỗi: ' + (result.error || 'Không thể thêm dịch vụ'));
+            return;
+        }
+        
+        alert(result.message);
+        e.target.reset();
+        getAllService();
+    } catch (error) {
+        alert('Lỗi: ' + error.message);
+    }
+});
 </script>
 </body>
 </html>

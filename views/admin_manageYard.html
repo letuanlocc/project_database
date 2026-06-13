@@ -4,91 +4,138 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>admin_manageYard</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        label { display: block; margin-top: 10px; }
+        .yard-row { border: 1px solid #ccc; padding: 10px; margin-bottom: 12px; }
+        .yard-row strong { display: block; margin-bottom: 6px; }
+        .hidden { display: none; }
+    </style>
 </head>
 <body>
+    <h1>Thêm sân mới</h1>
     <form id="yardForm">
+        <label for="ten">Tên sân:</label>
+        <input id="ten" type="text" name="ten" required maxlength="100">
 
-    <label>Tên sân:</label>
-    <input type="text" name="ten" required maxlength="100">
+        <label for="trangThai">Trạng thái:</label>
+        <select id="trangThai" name="trangThai" required>
+            <option value="trong">Trống</option>
+            <option value="dang_su_dung">Đang sử dụng</option>
+            <option value="bao_tri">Bảo trì</option>
+        </select>
 
-    <br><br>
+        <label for="gia">Giá:</label>
+        <input id="gia" type="number" name="gia" required min="0" step="0.01">
 
-    <select name="trangThai">
-    <option value="trong">Trống</option>
-    <option value="dang_su_dung">Đang sử dụng</option>
-    <option value="bao_tri">Bảo trì</option>
-    </select>
+        <label for="loaiSan">Loại sân:</label>
+        <select id="loaiSan" name="loaiSan" required>
+            <option value="">-- Chọn loại sân --</option>
+            <option value="cau_long">Sân cầu lông</option>
+            <option value="bong_da">Sân bóng đá</option>
+        </select>
 
-    <br><br>
+        <div id="badmintonFields" class="hidden">
+            <label for="chieuCaoLuoi">Chiều cao lưới (m):</label>
+            <input id="chieuCaoLuoi" type="number" name="chieuCaoLuoi" min="0" step="0.01">
+        </div>
 
-    <label>Giá:</label>
-    <input type="number" name="gia" required min="0">
+        <div id="footballFields" class="hidden">
+            <label for="chieuDai">Chiều dài sân (m):</label>
+            <input id="chieuDai" type="number" name="chieuDai" min="0" step="0.01">
+        </div>
 
-    <br><br>
-
-    <button type="submit">Thêm sân</button>
-
-</form>
-<button onclick = "getAllYard()">Xem tất cả sân</button>
+        <button type="submit">Thêm sân</button>
+    </form>
+    <button type="button" onclick="getAllYard()">Xem tất cả sân</button>
 
     <div id="result"></div>
 
 <script>
-window.getAllYard = async function getAllYard() {
-    const res = await fetch('/admin/yard');
-    const data = await res.json();
+    const loaiSanSelect = document.getElementById('loaiSan');
+    const badmintonFields = document.getElementById('badmintonFields');
+    const footballFields = document.getElementById('footballFields');
 
-    console.log(data);
+    loaiSanSelect.addEventListener('change', () => {
+        const value = loaiSanSelect.value;
+        badmintonFields.classList.toggle('hidden', value !== 'cau_long');
+        footballFields.classList.toggle('hidden', value !== 'bong_da');
 
-    document.getElementById('result').innerHTML =
-        data.map(e =>
-             `<div>
-                ${e.ten} - ${e.trangThai} - ${e.gia} 
-                <button onclick="deleteYard(${e.ma_san})">Xoá</button>
-            </div>`
-        ).join('');
-}
-window.deleteYard = async function deleteYard(id) {
-    const res = await fetch(`/admin/deleteYard/${id}`, {
-        method: 'POST'
+        if (value !== 'cau_long') {
+            document.getElementById('chieuCaoLuoi').value = '';
+        }
+        if (value !== 'bong_da') {
+            document.getElementById('chieuDai').value = '';
+        }
     });
-    const data = await res.json();
-    
-    if (!res.ok) {
-        alert('Lỗi: ' + (data.error || 'Không thể xoá sân'));
-        return;
-    }
-    
-    alert(data.message);
-    getAllYard();
-}
 
-document.getElementById('yardForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const formData = new FormData(e.target);
-    const data = Object.fromEntries(formData);
-    
-    try {
-        const res = await fetch('/admin/addYard', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
-        const result = await res.json();
-        
+    async function getAllYard() {
+        const res = await fetch('/admin/yard');
+        const data = await res.json();
+
+        document.getElementById('result').innerHTML = data.length === 0
+            ? '<p>Chưa có sân nào.</p>'
+            : data.map((e) => {
+                const typeLabel = e.loaiSan === 'cau_long' ? 'Sân cầu lông' : e.loaiSan === 'bong_da' ? 'Sân bóng đá' : 'Không xác định';
+                const extra = e.loaiSan === 'cau_long'
+                    ? `Chiều cao lưới: ${e.chieuCaoLuoi || '-'} m`
+                    : e.loaiSan === 'bong_da'
+                        ? `Chiều dài: ${e.chieuDai || '-'} m`
+                        : '';
+
+                return `<div class="yard-row">
+                    <strong>${e.ten}</strong>
+                    <div>Loại sân: ${typeLabel}</div>
+                    <div>Trạng thái: ${e.trangThai}</div>
+                    <div>Giá: ${e.gia}</div>
+                    <div>${extra}</div>
+                    <button type="button" onclick="deleteYard(${e.ma_san})">Xoá</button>
+                </div>`;
+            }).join('');
+    }
+
+    async function deleteYard(id) {
+        const res = await fetch(`/admin/deleteYard/${id}`, { method: 'POST' });
+        const data = await res.json();
+
         if (!res.ok) {
-            alert('Lỗi: ' + (result.error || 'Không thể thêm sân'));
+            alert('Lỗi: ' + (data.error || 'Không thể xoá sân'));
             return;
         }
-        
-        alert(result.message);
-        e.target.reset();
+
+        alert(data.message);
         getAllYard();
-    } catch (error) {
-        alert('Lỗi: ' + error.message);
     }
-});
+
+    document.getElementById('yardForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData);
+
+        try {
+            const res = await fetch('/admin/addYard', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            const result = await res.json();
+
+            if (!res.ok) {
+                alert('Lỗi: ' + (result.error || 'Không thể thêm sân'));
+                return;
+            }
+
+            alert(result.message);
+            e.target.reset();
+            badmintonFields.classList.add('hidden');
+            footballFields.classList.add('hidden');
+            getAllYard();
+        } catch (error) {
+            alert('Lỗi: ' + error.message);
+        }
+    });
+
+    getAllYard();
 </script>
 </body>
 </html>

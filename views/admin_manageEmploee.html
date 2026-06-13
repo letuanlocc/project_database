@@ -39,7 +39,7 @@ window.getAllEmployees = async function getAllEmployees() {
     document.getElementById('result').innerHTML =
         data.map(e =>
              `<div>
-                ${e.hoTen} - ${e.luong} - ${e.chucVu}
+                ${e.hoTen} - ${e.luong} - ${e.chucVu} - Đang phụ trách: ${e.bookingCount} đặt sân
                 <button onclick="deleteEmployee(${e.ma_nv})">Xoá</button>
             </div>`
         ).join('');

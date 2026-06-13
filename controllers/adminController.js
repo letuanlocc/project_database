@@ -1,7 +1,5 @@
 const path = require('path');
-const { NhanVien } = require('../models/product.js');
-const {DichVu } = require('../models/product.js');
-const {San} = require('../models/product.js');
+const { NhanVien, DichVu, San, SanCauLong, SanBongDa, DatSan, SuDungDV } = require('../models/product.js');
 exports.index = (req, res) => {
   res.sendFile(path.join(__dirname, '../views/index.html'));
 };
@@ -24,8 +22,19 @@ exports.addEmployee = async (req, res) => {
 
 exports.getAllEmployees = async (req, res) => {
     try {
-        const employees = await NhanVien.findAll();
-        res.json(employees); // CHẮC CHẮN phải là json
+        const employees = await NhanVien.findAll({
+            include: [{ model: DatSan, attributes: ['ma_dat'] }]
+        });
+
+        const response = employees.map((employee) => ({
+            ma_nv: employee.ma_nv,
+            hoTen: employee.hoTen,
+            luong: employee.luong,
+            chucVu: employee.chucVu,
+            bookingCount: employee.DatSans ? employee.DatSans.length : 0
+        }));
+
+        res.json(response);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -59,6 +68,14 @@ exports.deleteService = async (req, res) => {
     try {
         const id = req.params.id;
 
+        const usedCount = await SuDungDV.count({
+            where: { ma_dv: id }
+        });
+
+        if (usedCount > 0) {
+            return res.status(400).json({ error: 'Không thể xóa dịch vụ vì đang được sử dụng trong các đặt sân/dịch vụ.' });
+        }
+
         const deleted = await DichVu.destroy({
             where: { ma_dv: id }
         });
@@ -77,6 +94,11 @@ exports.deleteService = async (req, res) => {
 exports.deleteEmployee = async (req, res) => {
     try {
         const id = req.params.id;
+        const assignedBookings = await DatSan.count({ where: { ma_nv: id } });
+
+        if (assignedBookings > 0) {
+            return res.status(400).json({ error: 'Không thể xóa nhân viên đang phụ trách đặt sân.' });
+        }
 
         const deleted = await NhanVien.destroy({
             where: { ma_nv: id }
@@ -93,25 +115,74 @@ exports.deleteEmployee = async (req, res) => {
     }
 };
 
-exports.addYard= async (req,res) => {
-try{
-    const {ten,trangThai,gia} = req.body;
-    await San.create({
-        ten,
-        trangThai,
-        gia
-    })
-    res.json({ message: 'Thêm sân thành công' });
-}catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Lỗi thêm sân' });
+exports.addYard = async (req, res) => {
+    const { ten, trangThai, gia, loaiSan, chieuCaoLuoi, chieuDai } = req.body;
+
+    if (!ten || !trangThai || !gia || !loaiSan) {
+        return res.status(400).json({ error: 'Thiếu thông tin bắt buộc để thêm sân' });
     }
-}
+
+    const transaction = await San.sequelize.transaction();
+
+    try {
+        const san = await San.create({
+            ten,
+            trangThai,
+            gia
+        }, { transaction });
+
+        if (loaiSan === 'cau_long') {
+            if (!chieuCaoLuoi) {
+                throw new Error('Chưa nhập chiều cao lưới cho sân cầu lông');
+            }
+
+            await SanCauLong.create({
+                ma_san: san.ma_san,
+                chieuCaoLuoi: chieuCaoLuoi
+            }, { transaction });
+        } else if (loaiSan === 'bong_da') {
+            if (!chieuDai) {
+                throw new Error('Chưa nhập chiều dài cho sân bóng đá');
+            }
+
+            await SanBongDa.create({
+                ma_san: san.ma_san,
+                chieuDai: chieuDai
+            }, { transaction });
+        } else {
+            throw new Error('Loại sân không hợp lệ');
+        }
+
+        await transaction.commit();
+        res.json({ message: 'Thêm sân thành công', ma_san: san.ma_san });
+    } catch (error) {
+        await transaction.rollback();
+        console.error(error);
+        res.status(500).json({ error: error.message || 'Lỗi thêm sân' });
+    }
+};
 
 exports.getAllYard = async (req, res) => {
     try {
-        const yard = await San.findAll();
-        res.json(yard); 
+        const yards = await San.findAll({
+            include: [
+                { model: SanCauLong, attributes: ['chieuCaoLuoi'] },
+                { model: SanBongDa, attributes: ['chieuDai'] }
+            ],
+            order: [['ma_san', 'ASC']]
+        });
+
+        const response = yards.map((yard) => ({
+            ma_san: yard.ma_san,
+            ten: yard.ten,
+            trangThai: yard.trangThai,
+            gia: yard.gia,
+            loaiSan: yard.SanCauLong ? 'cau_long' : yard.SanBongDa ? 'bong_da' : 'khac',
+            chieuCaoLuoi: yard.SanCauLong ? yard.SanCauLong.chieuCaoLuoi : null,
+            chieuDai: yard.SanBongDa ? yard.SanBongDa.chieuDai : null
+        }));
+
+        res.json(response);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -120,6 +191,18 @@ exports.getAllYard = async (req, res) => {
 exports.deleteYard = async (req, res) => {
     try {
         const id = req.params.id;
+
+        const linkedCauLong = await SanCauLong.count({ where: { ma_san: id } });
+        const linkedBongDa = await SanBongDa.count({ where: { ma_san: id } });
+        const linkedDatSan = await DatSan.count({ where: { ma_san: id } });
+
+        if (linkedCauLong > 0 || linkedBongDa > 0) {
+            return res.status(400).json({ error: 'Không thể xóa sân vì đang có thông tin chi tiết sân liên kết.' });
+        }
+
+        if (linkedDatSan > 0) {
+            return res.status(400).json({ error: 'Không thể xóa sân vì đã có lịch đặt sân.' });
+        }
 
         const deleted = await San.destroy({
             where: { ma_san: id }

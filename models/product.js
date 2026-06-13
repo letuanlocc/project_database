@@ -9,9 +9,12 @@ const sequelize = new Sequelize(
         dialect: 'mssql',
         dialectOptions: {
             options: {
-                trustServerCertificate: true
-            }
-        }
+                trustServerCertificate: true,
+                useUTC: false
+            },
+            useUTC: false 
+        },
+        timezone: '+07:00'
     }
 );
 
@@ -117,7 +120,12 @@ const San = sequelize.define('San', {
 const SanCauLong = sequelize.define('SanCauLong', {
     ma_san: {
         type: DataTypes.INTEGER,
-        primaryKey: true
+        primaryKey: true,
+        allowNull: false,
+        references: {
+            model: 'San',
+            key: 'ma_san'
+        }
     },
     chieuCaoLuoi: DataTypes.DECIMAL(5,2)
 }, {
@@ -130,7 +138,12 @@ const SanCauLong = sequelize.define('SanCauLong', {
 const SanBongDa = sequelize.define('SanBongDa', {
     ma_san: {
         type: DataTypes.INTEGER,
-        primaryKey: true
+        primaryKey: true,
+        allowNull: false,
+        references: {
+            model: 'San',
+            key: 'ma_san'
+        }
     },
     chieuDai: DataTypes.DECIMAL(5,2)
 }, {
@@ -201,7 +214,8 @@ const DatSan = sequelize.define('DatSan', {
     }
 }, {
     tableName: 'Dat_san',
-    timestamps: false
+    timestamps: false,
+    hasTrigger: true
 });
 
 // ================= THANH_TOAN =================
@@ -211,6 +225,10 @@ const ThanhToan = sequelize.define('ThanhToan', {
         type: DataTypes.INTEGER,
         primaryKey: true,
         autoIncrement: true
+    },
+     ma_dat: {
+        type: DataTypes.INTEGER,
+        allowNull: false
     },
     phuongThuc: DataTypes.STRING,
     soTien: DataTypes.DECIMAL(12,2),

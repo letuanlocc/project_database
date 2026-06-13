@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User_pages</title>
+</head>
+<body>
+    <div id="newCustomerForm" style="display:none;">
+        <h3>Khách hàng mới</h3>
+
+        <label>Họ tên:</label>
+        <input type="text" id="ten">
+
+        <br><br>
+
+        <label>Giới tính:</label>
+        <input type="text" id="gioiTinh">
+
+        <br><br>
+
+        <label>Ngày sinh:</label>
+        <input type="date" id="ngaySinh">
+
+        <br><br>
+
+        <label>Số nhà:</label>
+        <input type="text" id="soNha">
+
+        <br><br>
+
+        <label>Đường:</label>
+        <input type="text" id="duong">
+
+        <br><br>
+
+        <label>Thành phố:</label>
+        <input type="text" id="thanhPho">
+
+        <br><br>
+
+        <button type="button" onclick="saveCustomer()">   
+            Lưu khách hàng
+        </button>
+    </div>
+
+    <script>
+        async function saveCustomer() {
+            try {
+                const payload = {
+                    sdt: document.getElementById('sdt').value,
+                    ten: document.getElementById('ten').value,
+                    gioiTinh: document.getElementById('gioiTinh').value,
+                    ngaySinh: document.getElementById('ngaySinh').value,
+                    soNha: document.getElementById('soNha').value,
+                    duong: document.getElementById('duong').value,
+                    thanhPho: document.getElementById('thanhPho').value
+                };
+
+                const res = await fetch('/order/createCustomer', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    alert(data.error || 'Lỗi lưu khách hàng');
+                    return;
+                }
+
+                alert(data.message);
+                document.getElementById('newCustomerForm').style.display = 'none';
+                document.getElementById('result').innerHTML = `<p>Đã lưu: ${data.customer.ten}</p>`;
+            } catch (error) {
+                alert('Lỗi mạng hoặc JavaScript: ' + error.message);
+            }
+        }
+    </script>
+    <label for="sdt">Số điện thoại (check thử số điện thoại đã có dữ liệu chưa):</label>
+    <input id="sdt" type="number" name="sdt">
+    <button onclick = "Checknumber()">Check number</button>
+    <div id="result"></div>
+
+    <div id="bookingForm" style="display:none; margin-top:20px; padding:15px; border:1px solid #ccc;">
+        <h3>Đặt sân cho khách hàng</h3>
+        <div id="bookingCustomerInfo"></div>
+        <label>Loại sân:</label>
+        <select id="bookingLoaiSan">
+            <option value="">-- Chọn loại sân --</option>
+            <option value="cau_long">Sân cầu lông</option>
+            <option value="bong_da">Sân bóng đá</option>
+        </select>
+
+        <div id="yardInfo" style="margin-top:10px;"></div>
+
+        <label>Chọn sân:</label>
+        <select id="bookingMaSan"></select>
+
+        <br><br>
+        <label>Ngày đặt:</label>
+        <input id="bookingNgayDat" type="date">
+
+        <br><br>
+        <label>Thời gian bắt đầu:</label>
+        <input id="bookingBatDau" type="time">
+
+        <br><br>
+        <label>Thời gian kết thúc:</label>
+        <input id="bookingKetThuc" type="time">
+
+        <br><br>
+        <label>Phương thức thanh toán:</label>
+        <select id="paymentMethod">
+            <option value="">-- Chọn phương thức thanh toán --</option>
+            <option value="Tiền mặt">Tiền mặt</option>
+            <option value="Chuyển khoản">Chuyển khoản</option>
+            <option value="Quét QR">Quét QR</option>
+        </select>
+
+        <br><br>
+        <div id="bookingTotal" style="margin-top:10px;"></div>
+        <button type="button" onclick="confirmBooking()">Xác nhận đặt sân</button>
+    </div>
+
+    <div id="bookingResult" style="margin-top:20px;"></div>
+    <script>
+        async function loadYardsByType(loai) {
+            if (!loai) {
+                document.getElementById('yardInfo').innerText = '';
+                document.getElementById('bookingMaSan').innerHTML = '';
+                return;
+            }
+
+            const res = await fetch(`/order/yards?loai=${loai}`);
+            const data = await res.json();
+
+            if (res.ok) {
+                document.getElementById('yardInfo').innerHTML = `<p>Loại sân ${loai === 'cau_long' ? 'cầu lông' : 'bóng đá'} có ${data.count} sân.</p>`;
+                document.getElementById('bookingMaSan').innerHTML = data.yards.map(y => `
+                    <option value="${y.ma_san}" data-price="${y.gia}">${y.ten} - Giá: ${y.gia} - ${loai === 'cau_long' ? `Lưới ${y.extra}m` : `Dài ${y.extra}m`}</option>
+                `).join('');
+                updateBookingTotal();
+            } else {
+                document.getElementById('yardInfo').innerText = data.error || 'Không tải được danh sách sân';
+                document.getElementById('bookingMaSan').innerHTML = '';
+            }
+        }
+
+        function updateBookingTotal() {
+            const select = document.getElementById('bookingMaSan');
+            const price = Number(select.selectedOptions[0]?.dataset?.price || 0);
+            const date = document.getElementById('bookingNgayDat').value;
+            const startTime = document.getElementById('bookingBatDau').value;
+            const endTime = document.getElementById('bookingKetThuc').value;
+
+            if (!price || !date || !startTime || !endTime) {
+                document.getElementById('bookingTotal').innerText = '';
+                return;
+            }
+
+            const start = new Date(`${date}T${startTime}`);
+            const end = new Date(`${date}T${endTime}`);
+            const hours = (end - start) / 3600000;
+
+            if (isNaN(hours) || hours <= 0) {
+                document.getElementById('bookingTotal').innerText = 'Thời gian chưa hợp lệ';
+                return;
+            }
+
+            const total = Math.round(price * hours * 100) / 100;
+            document.getElementById('bookingTotal').innerText = `Tổng tiền dự kiến: ${total} (Giá * ${hours} giờ)`;
+        }
+
+        document.getElementById('bookingLoaiSan').addEventListener('change', (event) => {
+            loadYardsByType(event.target.value);
+        });
+        document.getElementById('bookingMaSan').addEventListener('change', updateBookingTotal);
+        document.getElementById('bookingNgayDat').addEventListener('change', updateBookingTotal);
+        document.getElementById('bookingBatDau').addEventListener('change', updateBookingTotal);
+        document.getElementById('bookingKetThuc').addEventListener('change', updateBookingTotal);
+
+        async function confirmBooking() {
+            const sdt = document.getElementById('sdt').value;
+            const loaiSan = document.getElementById('bookingLoaiSan').value;
+            const ma_san = Number(document.getElementById('bookingMaSan').value);
+            const ngayDat = document.getElementById('bookingNgayDat').value;
+            const thoiGianBatDau = document.getElementById('bookingBatDau').value;
+            const thoiGianKetThuc = document.getElementById('bookingKetThuc').value;
+            const phuongThuc = document.getElementById('paymentMethod').value;
+
+            const res = await fetch('/order/createBooking', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ sdt, loaiSan, ma_san, ngayDat, thoiGianBatDau, thoiGianKetThuc, phuongThuc })
+            });
+
+            const data = await res.json();
+            if (!res.ok) {
+                alert(data.error || 'Lỗi tạo đặt sân');
+                return;
+            }
+
+            document.getElementById('bookingResult').innerHTML = `
+                <div style="border:1px solid #4CAF50; padding:12px;">
+                    <h3>Thông tin xác nhận đặt sân</h3>
+                    <div><strong>Khách hàng:</strong> ${data.customer.sdt}</div>
+                    <div><strong>Sân:</strong> ${data.booking.san.ten}</div>
+                    <div><strong>Loại sân:</strong> ${data.booking.loaiSan === 'cau_long' ? 'Cầu lông' : 'Bóng đá'}</div>
+                    <div><strong>Ngày đặt:</strong> ${data.booking.ngayDat}</div>
+                    <div><strong>Bắt đầu:</strong> ${new Date(data.booking.thoiGianBatDau).toLocaleString()}</div>
+                    <div><strong>Kết thúc:</strong> ${new Date(data.booking.thoiGianKetThuc).toLocaleString()}</div>
+                    <div><strong>Tổng tiền:</strong> ${data.booking.tongTien}</div>
+                    <div><strong>Phương thức thanh toán:</strong> ${data.payment.phuongThuc}</div>
+                    <div><strong>Nhân viên phụ trách:</strong> ${data.employee.hoTen} (${data.employee.chucVu})</div>
+                </div>
+            `;
+            document.getElementById('bookingForm').style.display = 'none';
+        }
+
+        async function Checknumber() {
+            const sdt = document.getElementById('sdt').value;
+
+            const res = await fetch('/order/Checknumber', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ sdt })
+            });
+
+            const data = await res.json();
+
+            if (!data.found) {
+                document.getElementById('result').innerHTML =
+                    '<p>Khách hàng mới. Vui lòng nhập thông tin.</p>';
+                document.getElementById('newCustomerForm')
+                    .style.display = 'block';
+                document.getElementById('bookingForm').style.display = 'none';
+                return;
+            }
+
+            let bookingsHtml = '<p>Chưa có đặt sân.</p>';
+            if (data.bookings && data.bookings.length > 0) {
+                bookingsHtml = '<div><strong>Các đặt sân hiện có:</strong>' +
+                    data.bookings.map(booking => `
+                                <div style="margin-bottom:10px; padding:8px; border:1px solid #ccc;">
+                            <div><strong>Sân:</strong> ${booking.san ? booking.san.ten : 'Không rõ'}</div>
+                            <div><strong>Ngày đặt:</strong> ${booking.ngayDat || '-'}</div>
+                            <div><strong>Bắt đầu:</strong> ${booking.thoiGianBatDau || '-'}</div>
+                            <div><strong>Kết thúc:</strong> ${booking.thoiGianKetThuc || '-'}</div>
+                            <div><strong>Tổng tiền:</strong> ${booking.tongTien || '-'}</div>
+                            <div><strong>Phương thức thanh toán:</strong> ${booking.payment ? booking.payment.phuongThuc : 'Chưa có'}</div>
+                            <div><strong>Nhân viên phụ trách:</strong> ${booking.employee ? `${booking.employee.hoTen} (${booking.employee.chucVu})` : 'Chưa có'}</div>
+                        </div>
+                    `).join('') + '</div>';
+            }
+
+            document.getElementById('result').innerHTML = `
+                <div>
+                    <strong>Khách hàng:</strong> ${data.customer.ten} - ${sdt}
+                </div>
+                ${bookingsHtml}
+            `;
+            document.getElementById('newCustomerForm').style.display = 'none';
+            document.getElementById('bookingForm').style.display = 'block';
+            document.getElementById('bookingCustomerInfo').innerHTML = `<p><strong>Khách hàng:</strong> ${data.customer.ten} - ${sdt}</p>`;
+            document.getElementById('bookingLoaiSan').value = '';
+            document.getElementById('bookingMaSan').innerHTML = '';
+            document.getElementById('bookingTotal').innerText = '';
+            document.getElementById('bookingResult').innerHTML = '';
+        }
+    </script>
+</body>
+</html>

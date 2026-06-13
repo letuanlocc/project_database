@@ -12,9 +12,8 @@ const sequelize = new Sequelize(
                 trustServerCertificate: true,
                 useUTC: false
             },
-            useUTC: false 
-        },
-        timezone: '+07:00'
+            useUTC: false
+        }
     }
 );
 
@@ -199,12 +198,12 @@ const DatSan = sequelize.define('DatSan', {
     },
 
     thoiGianBatDau: {
-        type: DataTypes.DATE,
+        type: DataTypes.STRING,
         allowNull: false
     },
 
     thoiGianKetThuc: {
-        type: DataTypes.DATE,
+        type: DataTypes.STRING,
         allowNull: false
     },
 
@@ -232,7 +231,7 @@ const ThanhToan = sequelize.define('ThanhToan', {
     },
     phuongThuc: DataTypes.STRING,
     soTien: DataTypes.DECIMAL(12,2),
-    thoiGian: DataTypes.DATE
+    thoiGian: DataTypes.STRING
 }, {
     tableName: 'Thanh_toan',
     timestamps: false

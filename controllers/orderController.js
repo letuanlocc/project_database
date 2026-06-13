@@ -17,7 +17,13 @@ exports.Checknumber = async (req, res) => {
                             include: [
                                 { model: San },
                                 { model: NhanVien },
-                                { model: ThanhToan }
+                                { model: ThanhToan },
+                                {
+                                    model: DichVu,
+                                    through: {
+                                        attributes: ['soLuong']
+                                    }
+                                }
                             ]
                         }
                     ]
@@ -33,7 +39,6 @@ exports.Checknumber = async (req, res) => {
 
         const customer = result.KhachHang;
         const bookings = customer.DatSans || [];
-
         res.json({
             found: true,
             customer: {
@@ -48,6 +53,11 @@ exports.Checknumber = async (req, res) => {
                 thoiGianBatDau: booking.thoiGianBatDau,
                 thoiGianKetThuc: booking.thoiGianKetThuc,
                 tongTien: booking.tongTien,
+                dichVu: booking.DichVus?.[0] ? {
+                    ten: booking.DichVus[0].ten,
+                    gia: booking.DichVus[0].gia,
+                    soLuong: booking.DichVus[0].SuDungDV.soLuong
+                } : null,
                 san: booking.San ? {
                     ma_san: booking.San.ma_san,
                     ten: booking.San.ten,
@@ -215,8 +225,7 @@ exports.createBooking = async (req, res) => {
 
         const formatSqlDateTime = (date) => {
             const pad2 = (value) => String(value).padStart(2, '0');
-            const pad3 = (value) => String(value).padStart(3, '0');
-            return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())} ${pad2(date.getHours())}:${pad2(date.getMinutes())}:${pad2(date.getSeconds())}.${pad3(date.getMilliseconds())}`;
+            return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())} ${pad2(date.getHours())}:${pad2(date.getMinutes())}:${pad2(date.getSeconds())}`;
         };
 
         const employees = await NhanVien.findAll({
@@ -270,8 +279,8 @@ exports.createBooking = async (req, res) => {
             ma_nv: chosenEmployee.ma_nv,
             ma_san,
             ngayDat,
-            thoiGianBatDau: start,
-            thoiGianKetThuc: end,
+            thoiGianBatDau: formatSqlDateTime(start),
+            thoiGianKetThuc: formatSqlDateTime(end),
             tongTien: totalPrice
         }, { transaction });
 
@@ -324,11 +333,13 @@ exports.createBooking = async (req, res) => {
             }
         });
     } catch (error) {
-        if (transaction) {
+        if (transaction && !transaction.finished) {
             try {
                 await transaction.rollback();
             } catch (rollbackError) {
-                console.error('Rollback error:', rollbackError);
+                if (rollbackError.parent?.number !== 3903) {
+                    console.error('Rollback error:', rollbackError);
+                }
             }
         }
         console.error('createBooking error:', error);

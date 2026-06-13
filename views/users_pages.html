@@ -209,6 +209,9 @@
         document.getElementById('soLuongDichVu').addEventListener('input', updateBookingTotal);
 
         async function confirmBooking() {
+            const serviceSelect = document.getElementById('DichVu');
+            const servicePrice = Number(serviceSelect.selectedOptions[0]?.dataset?.price || 0);
+            const serviceQty = Number(document.getElementById('soLuongDichVu').value) || 0;
             const sdt = document.getElementById('sdt').value;
             const loaiSan = document.getElementById('bookingLoaiSan').value;
             const ma_san = Number(document.getElementById('bookingMaSan').value);
@@ -288,6 +291,7 @@
                             <div><strong>Ngày đặt:</strong> ${booking.ngayDat || '-'}</div>
                             <div><strong>Bắt đầu:</strong> ${booking.thoiGianBatDau || '-'}</div>
                             <div><strong>Kết thúc:</strong> ${booking.thoiGianKetThuc || '-'}</div>
+                            ${booking.dichVu ? `<div><strong>Dịch vụ:</strong> ${booking.dichVu.ten} x ${booking.dichVu.soLuong} (${booking.dichVu.gia}/đơn vị)</div>` : ''}
                             <div><strong>Tổng tiền:</strong> ${booking.tongTien || '-'}</div>
                             <div><strong>Phương thức thanh toán:</strong> ${booking.payment ? booking.payment.phuongThuc : 'Chưa có'}</div>
                             <div><strong>Nhân viên phụ trách:</strong> ${booking.employee ? `${booking.employee.hoTen} (${booking.employee.chucVu})` : 'Chưa có'}</div>

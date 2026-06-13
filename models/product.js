@@ -252,7 +252,8 @@ const SuDungDV = sequelize.define('SuDungDV', {
     soLuong: DataTypes.INTEGER
 }, {
     tableName: 'Su_dung_dv',
-    timestamps: false
+    timestamps: false,
+    hasTrigger: true
 });
 
 // ================= ASSOCIATIONS =================

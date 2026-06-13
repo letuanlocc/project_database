@@ -1,4 +1,4 @@
-const { NumberKH, KhachHang, DiaChi, DatSan, San, SanCauLong, SanBongDa, NhanVien, ThanhToan } = require('../models/product.js');
+const { NumberKH, KhachHang, DiaChi, DatSan, San, SanCauLong, SanBongDa, NhanVien, ThanhToan, DichVu, SuDungDV } = require('../models/product.js');
 const { sequelize } = require('../models/product.js'); 
 exports.Checknumber = async (req, res) => {
     try {
@@ -167,7 +167,7 @@ exports.getYardsByType = async (req, res) => {
 exports.createBooking = async (req, res) => {
     let transaction;
     try {
-        const { sdt, loaiSan, ma_san, ngayDat, thoiGianBatDau, thoiGianKetThuc, phuongThuc } = req.body;
+        const { sdt, loaiSan, ma_san, ngayDat, thoiGianBatDau, thoiGianKetThuc, phuongThuc, ma_dv, soLuong } = req.body;
 
         if (!sdt || !loaiSan || !ma_san || !ngayDat || !thoiGianBatDau || !thoiGianKetThuc || !phuongThuc) {
             return res.status(400).json({ error: 'Thiếu thông tin đặt sân hoặc phương thức thanh toán' });
@@ -238,7 +238,30 @@ exports.createBooking = async (req, res) => {
             }
         }
 
-        const totalPrice = Number(san.gia) * durationHours;
+        let serviceInfo = null;
+        let serviceTotal = 0;
+
+        if (ma_dv) {
+            const service = await DichVu.findByPk(ma_dv);
+            if (!service) {
+                return res.status(404).json({ error: 'Không tìm thấy dịch vụ' });
+            }
+
+            const quantity = Number(soLuong) || 1;
+            if (quantity <= 0) {
+                return res.status(400).json({ error: 'Số lượng dịch vụ phải lớn hơn 0' });
+            }
+
+            serviceTotal = Number(service.gia) * quantity;
+            serviceInfo = {
+                ma_dv: service.ma_dv,
+                ten: service.ten,
+                gia: service.gia,
+                soLuong: quantity
+            };
+        }
+
+        const totalPrice = Number(san.gia) * durationHours + serviceTotal;
 
         transaction = await NumberKH.sequelize.transaction();
 
@@ -251,6 +274,14 @@ exports.createBooking = async (req, res) => {
             thoiGianKetThuc: end,
             tongTien: totalPrice
         }, { transaction });
+
+        if (serviceInfo) {
+            await SuDungDV.create({
+                ma_dat: booking.ma_dat,
+                ma_dv: serviceInfo.ma_dv,
+                soLuong: serviceInfo.soLuong
+            }, { transaction });
+        }
 
         const payment = await booking.createThanhToan({
             phuongThuc,
@@ -274,7 +305,8 @@ exports.createBooking = async (req, res) => {
                     ten: san.ten,
                     gia: san.gia,
                     extra: loaiSan === 'cau_long' ? san.SanCauLong?.chieuCaoLuoi : san.SanBongDa?.chieuDai
-                }
+                },
+                dichVu: serviceInfo
             },
             payment: {
                 phuongThuc: payment.phuongThuc,
@@ -301,5 +333,19 @@ exports.createBooking = async (req, res) => {
         }
         console.error('createBooking error:', error);
         res.status(500).json({ error: error.message || 'Lỗi tạo đặt sân' });
+    }
+};
+
+exports.getServices = async (req, res) => {
+    try {
+        const services = await DichVu.findAll();
+
+        res.json({
+            services
+        });
+    } catch (error) {
+        res.status(500).json({
+            error: error.message
+        });
     }
 };

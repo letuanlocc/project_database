@@ -111,6 +111,16 @@
         <br><br>
         <label>Thời gian kết thúc:</label>
         <input id="bookingKetThuc" type="time">
+        
+        <br><br>
+        <label>Dịch vụ (tùy chọn):</label>
+        <select id="DichVu">
+            <option value="">-- Không chọn dịch vụ --</option>
+        </select>
+
+        <br><br>
+        <label>Số lượng dịch vụ:</label>
+        <input id="soLuongDichVu" type="number" min="1" value="1">
 
         <br><br>
         <label>Phương thức thanh toán:</label>
@@ -156,6 +166,9 @@
             const date = document.getElementById('bookingNgayDat').value;
             const startTime = document.getElementById('bookingBatDau').value;
             const endTime = document.getElementById('bookingKetThuc').value;
+            const serviceSelect = document.getElementById('DichVu');
+            const servicePrice = Number(serviceSelect.selectedOptions[0]?.dataset?.price || 0);
+            const serviceQty = Number(document.getElementById('soLuongDichVu').value) || 0;
 
             if (!price || !date || !startTime || !endTime) {
                 document.getElementById('bookingTotal').innerText = '';
@@ -171,8 +184,18 @@
                 return;
             }
 
-            const total = Math.round(price * hours * 100) / 100;
-            document.getElementById('bookingTotal').innerText = `Tổng tiền dự kiến: ${total} (Giá * ${hours} giờ)`;
+            const yardTotal = Math.round(price * hours * 100) / 100;
+            const serviceTotal = serviceSelect.value && serviceQty > 0
+                ? Math.round(servicePrice * serviceQty * 100) / 100
+                : 0;
+            const total = Math.round((yardTotal + serviceTotal) * 100) / 100;
+
+            let text = `Tổng tiền dự kiến: ${total} (Sân: ${yardTotal}`;
+            if (serviceTotal > 0) {
+                text += ` + Dịch vụ: ${serviceTotal}`;
+            }
+            text += ')';
+            document.getElementById('bookingTotal').innerText = text;
         }
 
         document.getElementById('bookingLoaiSan').addEventListener('change', (event) => {
@@ -182,6 +205,8 @@
         document.getElementById('bookingNgayDat').addEventListener('change', updateBookingTotal);
         document.getElementById('bookingBatDau').addEventListener('change', updateBookingTotal);
         document.getElementById('bookingKetThuc').addEventListener('change', updateBookingTotal);
+        document.getElementById('DichVu').addEventListener('change', updateBookingTotal);
+        document.getElementById('soLuongDichVu').addEventListener('input', updateBookingTotal);
 
         async function confirmBooking() {
             const sdt = document.getElementById('sdt').value;
@@ -190,14 +215,22 @@
             const ngayDat = document.getElementById('bookingNgayDat').value;
             const thoiGianBatDau = document.getElementById('bookingBatDau').value;
             const thoiGianKetThuc = document.getElementById('bookingKetThuc').value;
+            const ma_dv = document.getElementById('DichVu').value;
+            const soLuong = Number(document.getElementById('soLuongDichVu').value) || 1;
             const phuongThuc = document.getElementById('paymentMethod').value;
+
+            const payload = { sdt, loaiSan, ma_san, ngayDat, thoiGianBatDau, thoiGianKetThuc, phuongThuc };
+            if (ma_dv) {
+                payload.ma_dv = Number(ma_dv);
+                payload.soLuong = soLuong;
+            }
 
             const res = await fetch('/order/createBooking', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ sdt, loaiSan, ma_san, ngayDat, thoiGianBatDau, thoiGianKetThuc, phuongThuc })
+                body: JSON.stringify(payload)
             });
 
             const data = await res.json();
@@ -216,6 +249,7 @@
                     <div><strong>Bắt đầu:</strong> ${new Date(data.booking.thoiGianBatDau).toLocaleString()}</div>
                     <div><strong>Kết thúc:</strong> ${new Date(data.booking.thoiGianKetThuc).toLocaleString()}</div>
                     <div><strong>Tổng tiền:</strong> ${data.booking.tongTien}</div>
+                    ${data.booking.dichVu ? `<div><strong>Dịch vụ:</strong> ${data.booking.dichVu.ten} x ${data.booking.dichVu.soLuong} (${data.booking.dichVu.gia}/đơn vị)</div>` : ''}
                     <div><strong>Phương thức thanh toán:</strong> ${data.payment.phuongThuc}</div>
                     <div><strong>Nhân viên phụ trách:</strong> ${data.employee.hoTen} (${data.employee.chucVu})</div>
                 </div>
@@ -275,6 +309,26 @@
             document.getElementById('bookingTotal').innerText = '';
             document.getElementById('bookingResult').innerHTML = '';
         }
+    async function loadServices() {
+        const res = await fetch('/order/services');
+        const data = await res.json();
+
+        if (!res.ok) {
+            console.error(data.error || 'Không tải được danh sách dịch vụ');
+            return;
+        }
+
+        document.getElementById('DichVu').innerHTML =
+            '<option value="">-- Không chọn dịch vụ --</option>' +
+            data.services.map(dv => `
+                <option value="${dv.ma_dv}" data-price="${dv.gia}">
+                    ${dv.ten} - ${dv.gia}
+                </option>
+            `).join('');
+    }
+    document.addEventListener('DOMContentLoaded', () => {
+        loadServices();
+    });
     </script>
 </body>
 </html>

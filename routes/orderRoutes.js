@@ -18,5 +18,5 @@ router.post('/Checknumber', asyncHandler(orderCtrl.Checknumber));
 router.post('/createCustomer', asyncHandler(orderCtrl.createCustomer));
 router.get('/yards', asyncHandler(orderCtrl.getYardsByType));
 router.post('/createBooking', asyncHandler(orderCtrl.createBooking));
-
+router.get('/services',asyncHandler(orderCtrl.getServices))
 module.exports = router;

@@ -89,10 +89,61 @@
                     <div>Trạng thái: ${e.trangThai}</div>
                     <div>Giá: ${e.gia}</div>
                     <div>${extra}</div>
+                    <button type="button" onclick="showEditYard(${e.ma_san}, '${escapeHtml(e.ten)}', '${e.trangThai}', ${e.gia}, '${e.loaiSan || ''}', ${e.chieuCaoLuoi || ''}, ${e.chieuDai || ''})">Sửa</button>
                     <button type="button" onclick="deleteYard(${e.ma_san})">Xoá</button>
                 </div>`;
             }).join('');
     }
+
+function escapeHtml(str){ if(!str) return ''; return String(str).replace(/'/g, "\\'").replace(/"/g,'\"'); }
+
+function showEditYard(id, ten, trangThai, gia, loaiSan, chieuCaoLuoi, chieuDai){
+    const container = document.getElementById('result');
+    const form = document.createElement('div');
+    form.className = 'yard-row';
+    form.innerHTML = `
+        <h3>Chỉnh sửa sân</h3>
+        <label>Tên:</label><input id="edit_ten" value="${ten}"><br>
+        <label>Trạng thái:</label>
+        <select id="edit_trangThai"><option value="trong">Trống</option><option value="dang_su_dung">Đang sử dụng</option><option value="bao_tri">Bảo trì</option></select><br>
+        <label>Giá:</label><input id="edit_gia" type="number" value="${gia}"><br>
+        <label>Loại sân:</label>
+        <select id="edit_loaiSan"><option value="">-- Chọn --</option><option value="cau_long">Sân cầu lông</option><option value="bong_da">Sân bóng đá</option></select><br>
+        <div id="edit_badmintonFields"><label>Chiều cao lưới (m):</label><input id="edit_chieuCaoLuoi" type="number" value="${chieuCaoLuoi || ''}"></div>
+        <div id="edit_footballFields"><label>Chiều dài (m):</label><input id="edit_chieuDai" type="number" value="${chieuDai || ''}"></div>
+        <button onclick="saveEditYard(${id})">Lưu</button>
+        <button onclick="getAllYard()">Hủy</button>
+    `;
+    container.prepend(form);
+    document.getElementById('edit_trangThai').value = trangThai;
+    document.getElementById('edit_loaiSan').value = loaiSan || '';
+    const b = document.getElementById('edit_badmintonFields');
+    const f = document.getElementById('edit_footballFields');
+    b.style.display = loaiSan === 'cau_long' ? '' : 'none';
+    f.style.display = loaiSan === 'bong_da' ? '' : 'none';
+    document.getElementById('edit_loaiSan').addEventListener('change', (ev)=>{
+        const v = ev.target.value;
+        b.style.display = v === 'cau_long' ? '' : 'none';
+        f.style.display = v === 'bong_da' ? '' : 'none';
+    });
+}
+
+async function saveEditYard(id){
+    const ten = document.getElementById('edit_ten').value;
+    const trangThai = document.getElementById('edit_trangThai').value;
+    const gia = document.getElementById('edit_gia').value;
+    const loaiSan = document.getElementById('edit_loaiSan').value;
+    const chieuCaoLuoi = document.getElementById('edit_chieuCaoLuoi')?.value;
+    const chieuDai = document.getElementById('edit_chieuDai')?.value;
+    const payload = { ten, trangThai, gia, loaiSan };
+    if (loaiSan === 'cau_long') payload.chieuCaoLuoi = chieuCaoLuoi;
+    if (loaiSan === 'bong_da') payload.chieuDai = chieuDai;
+    const res = await fetch(`/admin/updateYard/${id}`, { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    const data = await res.json();
+    if (!res.ok) { alert(data.error || 'Lỗi cập nhật'); return; }
+    alert(data.message);
+    getAllYard();
+}
 
     async function deleteYard(id) {
         const res = await fetch(`/admin/deleteYard/${id}`, { method: 'POST' });

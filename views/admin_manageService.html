@@ -36,9 +36,35 @@ window.getAllService = async function getAllService() {
         data.map(e =>
              `<div>
                 ${e.ten} - ${e.gia}
+                <button onclick="showEditService(${e.ma_dv}, '${escapeHtml(e.ten)}', ${e.gia || 0})">Sửa</button>
                 <button onclick="deleteService(${e.ma_dv})">Xoá</button>
             </div>`
         ).join('');
+}
+function escapeHtml(str){ if(!str) return ''; return String(str).replace(/'/g, "\\'").replace(/"/g,'\"'); }
+
+function showEditService(id, ten, gia){
+    const container = document.getElementById('result');
+    const form = document.createElement('div');
+    form.innerHTML = `
+        <h3>Chỉnh sửa dịch vụ</h3>
+        <label>Tên:</label><input id="edit_ten" value="${ten}"><br>
+        <label>Giá:</label><input id="edit_gia" type="number" value="${gia}"><br>
+        <button onclick="saveEditService(${id})">Lưu</button>
+        <button onclick="getAllService()">Hủy</button>
+    `;
+    container.prepend(form);
+}
+
+async function saveEditService(id){
+    const ten = document.getElementById('edit_ten').value;
+    const gia = document.getElementById('edit_gia').value;
+    const payload = { ten, gia };
+    const res = await fetch(`/admin/updateService/${id}`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    const data = await res.json();
+    if (!res.ok) { alert(data.error || 'Lỗi cập nhật'); return; }
+    alert(data.message);
+    getAllService();
 }
 window.deleteService = async function deleteService(id) {
     const res = await fetch(`/admin/deleteService/${id}`, {

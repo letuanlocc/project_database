@@ -218,3 +218,66 @@ exports.deleteYard = async (req, res) => {
         res.status(500).json({ error: 'Lỗi xoá sân' });
     }
 };
+
+exports.updateEmployee = async (req, res) => {
+    try {
+        const id = req.params.id;
+        const { hoTen, luong, chucVu } = req.body;
+        const employee = await NhanVien.findByPk(id);
+        if (!employee) return res.status(404).json({ error: 'Không tìm thấy nhân viên' });
+        await employee.update({ hoTen, luong, chucVu });
+        res.json({ message: 'Cập nhật nhân viên thành công' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Lỗi cập nhật nhân viên' });
+    }
+};
+
+exports.updateService = async (req, res) => {
+    try {
+        const id = req.params.id;
+        const { ten, gia } = req.body;
+        const service = await DichVu.findByPk(id);
+        if (!service) return res.status(404).json({ error: 'Không tìm thấy dịch vụ' });
+        await service.update({ ten, gia });
+        res.json({ message: 'Cập nhật dịch vụ thành công' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Lỗi cập nhật dịch vụ' });
+    }
+};
+
+exports.updateYard = async (req, res) => {
+    const transaction = await San.sequelize.transaction();
+    try {
+        const id = req.params.id;
+        const { ten, trangThai, gia, loaiSan, chieuCaoLuoi, chieuDai } = req.body;
+
+        const san = await San.findByPk(id, { transaction });
+        if (!san) {
+            await transaction.rollback();
+            return res.status(404).json({ error: 'Không tìm thấy sân' });
+        }
+
+        await san.update({ ten, trangThai, gia }, { transaction });
+
+        // remove existing detail rows, then insert/update based on loaiSan
+        await SanCauLong.destroy({ where: { ma_san: id }, transaction });
+        await SanBongDa.destroy({ where: { ma_san: id }, transaction });
+
+        if (loaiSan === 'cau_long') {
+            if (!chieuCaoLuoi) throw new Error('Chưa nhập chiều cao lưới cho sân cầu lông');
+            await SanCauLong.create({ ma_san: id, chieuCaoLuoi }, { transaction });
+        } else if (loaiSan === 'bong_da') {
+            if (!chieuDai) throw new Error('Chưa nhập chiều dài cho sân bóng đá');
+            await SanBongDa.create({ ma_san: id, chieuDai }, { transaction });
+        }
+
+        await transaction.commit();
+        res.json({ message: 'Cập nhật sân thành công' });
+    } catch (error) {
+        await transaction.rollback();
+        console.error(error);
+        res.status(500).json({ error: error.message || 'Lỗi cập nhật sân' });
+    }
+};

@@ -249,12 +249,15 @@
                     <div><strong>Sân:</strong> ${data.booking.san.ten}</div>
                     <div><strong>Loại sân:</strong> ${data.booking.loaiSan === 'cau_long' ? 'Cầu lông' : 'Bóng đá'}</div>
                     <div><strong>Ngày đặt:</strong> ${data.booking.ngayDat}</div>
-                    <div><strong>Bắt đầu:</strong> ${new Date(data.booking.thoiGianBatDau).toLocaleString()}</div>
-                    <div><strong>Kết thúc:</strong> ${new Date(data.booking.thoiGianKetThuc).toLocaleString()}</div>
+                    <div><strong>Bắt đầu:</strong> ${formatSqlDateTime(data.booking.thoiGianBatDau) || '-'}</div>
+                    <div><strong>Kết thúc:</strong> ${formatSqlDateTime(data.booking.thoiGianKetThuc) || '-'}</div>
                     <div><strong>Tổng tiền:</strong> ${data.booking.tongTien}</div>
                     ${data.booking.dichVu ? `<div><strong>Dịch vụ:</strong> ${data.booking.dichVu.ten} x ${data.booking.dichVu.soLuong} (${data.booking.dichVu.gia}/đơn vị)</div>` : ''}
                     <div><strong>Phương thức thanh toán:</strong> ${data.payment.phuongThuc}</div>
                     <div><strong>Nhân viên phụ trách:</strong> ${data.employee.hoTen} (${data.employee.chucVu})</div>
+                    <div style="margin-top:10px;">
+                        <button type="button" onclick="backToBooking()">Quay lại sửa</button>
+                    </div>
                 </div>
             `;
             document.getElementById('bookingForm').style.display = 'none';
@@ -289,8 +292,8 @@
                                 <div style="margin-bottom:10px; padding:8px; border:1px solid #ccc;">
                             <div><strong>Sân:</strong> ${booking.san ? booking.san.ten : 'Không rõ'}</div>
                             <div><strong>Ngày đặt:</strong> ${booking.ngayDat || '-'}</div>
-                            <div><strong>Bắt đầu:</strong> ${booking.thoiGianBatDau || '-'}</div>
-                            <div><strong>Kết thúc:</strong> ${booking.thoiGianKetThuc || '-'}</div>
+                            <div><strong>Bắt đầu:</strong> ${formatSqlDateTime(booking.thoiGianBatDau) || '-'}</div>
+                            <div><strong>Kết thúc:</strong> ${formatSqlDateTime(booking.thoiGianKetThuc) || '-'}</div>
                             ${booking.dichVu ? `<div><strong>Dịch vụ:</strong> ${booking.dichVu.ten} x ${booking.dichVu.soLuong} (${booking.dichVu.gia}/đơn vị)</div>` : ''}
                             <div><strong>Tổng tiền:</strong> ${booking.tongTien || '-'}</div>
                             <div><strong>Phương thức thanh toán:</strong> ${booking.payment ? booking.payment.phuongThuc : 'Chưa có'}</div>
@@ -312,6 +315,32 @@
             document.getElementById('bookingMaSan').innerHTML = '';
             document.getElementById('bookingTotal').innerText = '';
             document.getElementById('bookingResult').innerHTML = '';
+        }
+        function backToBooking() {
+            document.getElementById('bookingForm').style.display = 'block';
+            document.getElementById('bookingResult').innerHTML = '';
+            window.scrollTo(0, document.getElementById('bookingForm').offsetTop || 0);
+        }
+        function formatSqlDateTime(sql) {
+            if (!sql) return '';
+            try {
+                let s = String(sql).trim();
+                if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/.test(s)) {
+                    s = s.replace(' ', 'T');
+                }
+                const d = new Date(s);
+                if (isNaN(d.getTime())) return sql;
+                const pad2 = (n) => String(n).padStart(2, '0');
+                const hh = pad2(d.getHours());
+                const mm = pad2(d.getMinutes());
+                const ss = pad2(d.getSeconds());
+                const day = d.getDate();
+                const month = d.getMonth() + 1;
+                const year = d.getFullYear();
+                return `${hh}:${mm}:${ss} ${day}/${month}/${year}`;
+            } catch (e) {
+                return sql;
+            }
         }
     async function loadServices() {
         const res = await fetch('/order/services');

@@ -40,9 +40,37 @@ window.getAllEmployees = async function getAllEmployees() {
         data.map(e =>
              `<div>
                 ${e.hoTen} - ${e.luong} - ${e.chucVu} - Đang phụ trách: ${e.bookingCount} đặt sân
+                <button onclick="showEditEmployee(${e.ma_nv}, '${escapeHtml(e.hoTen)}', ${e.luong || 0}, '${escapeHtml(e.chucVu)}')">Sửa</button>
                 <button onclick="deleteEmployee(${e.ma_nv})">Xoá</button>
             </div>`
         ).join('');
+}
+function escapeHtml(str){ if(!str) return ''; return String(str).replace(/'/g, "\\'").replace(/"/g,'\"'); }
+
+function showEditEmployee(id, hoTen, luong, chucVu){
+    const container = document.getElementById('result');
+    const form = document.createElement('div');
+    form.innerHTML = `
+        <h3>Chỉnh sửa nhân viên</h3>
+        <label>Họ tên:</label><input id="edit_hoTen" value="${hoTen}"><br>
+        <label>Lương:</label><input id="edit_luong" type="number" value="${luong}"><br>
+        <label>Chức vụ:</label><input id="edit_chucVu" value="${chucVu}"><br>
+        <button onclick="saveEditEmployee(${id})">Lưu</button>
+        <button onclick="getAllEmployees()">Hủy</button>
+    `;
+    container.prepend(form);
+}
+
+async function saveEditEmployee(id){
+    const hoTen = document.getElementById('edit_hoTen').value;
+    const luong = document.getElementById('edit_luong').value;
+    const chucVu = document.getElementById('edit_chucVu').value;
+    const payload = { hoTen, luong, chucVu };
+    const res = await fetch(`/admin/updateEmployee/${id}`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    const data = await res.json();
+    if (!res.ok) { alert(data.error || 'Lỗi cập nhật'); return; }
+    alert(data.message);
+    getAllEmployees();
 }
 window.deleteEmployee = async function deleteEmployee(id) {
     const res = await fetch(`/admin/deleteEmployee/${id}`, {
